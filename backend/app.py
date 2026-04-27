@@ -39,6 +39,70 @@ def predict_personality():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/api/predict_social', methods=['POST'])
+def predict_social():
+    if predictor is None:
+        return jsonify({"error": "ML models are not loaded. Server setup incomplete."}), 500
+
+    data = request.json
+    if not data or 'platform' not in data or 'handle' not in data or 'mock_data' not in data:
+        return jsonify({"error": "Missing required social media data"}), 400
+
+    mock_data = data['mock_data']
+    posts = mock_data.get('posts', [])
+    hashtags = mock_data.get('hashtags', [])
+    friend_count = mock_data.get('friend_count')
+    platform = data.get('platform')
+
+    # Combine text data for the NLP model
+    combined_text = " ".join(posts) + " " + " ".join(hashtags)
+    
+    if len(combined_text.strip()) < 10:
+        # Fallback text if mock data is too short
+        combined_text += " I am a user on this platform."
+
+    try:
+        if platform.lower() in ['github', 'leetcode', 'codeforces', 'hackerrank']:
+            from ml.tech_evaluator import TechEvaluator
+            evaluator = TechEvaluator()
+            results = evaluator.evaluate(mock_data)
+        else:
+            results = predictor.predict(combined_text, friend_count=friend_count, platform=platform)
+            
+        return jsonify(results), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/scrape_social', methods=['POST'])
+def scrape_social():
+    data = request.json
+    if not data or 'platform' not in data or 'handle' not in data:
+        return jsonify({"error": "Missing platform or handle"}), 400
+        
+    platform = data['platform'].lower()
+    handle = data['handle']
+    
+    try:
+        if platform == 'github':
+            from scrapers.github_scraper import scrape_github
+            result = scrape_github(handle)
+        elif platform == 'leetcode':
+            from scrapers.leetcode_scraper import scrape_leetcode
+            result = scrape_leetcode(handle)
+        elif platform == 'codeforces':
+            from scrapers.codeforces_scraper import scrape_codeforces
+            result = scrape_codeforces(handle)
+        elif platform == 'hackerrank':
+            from scrapers.hackerrank_scraper import scrape_hackerrank
+            result = scrape_hackerrank(handle)
+        else:
+            return jsonify({"error": f"Scraping for {platform} is not supported."}), 400
+            
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 if __name__ == '__main__':
     # Use Waitress for production-ready serving locally, or Flask dev server
     print("Starting Flask API Server on port 5000...")

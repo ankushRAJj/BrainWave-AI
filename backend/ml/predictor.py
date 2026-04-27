@@ -28,7 +28,7 @@ class PersonalityPredictor:
         text = re.sub(r'[^a-zA-Z\s]', '', text)
         return text
 
-    def predict(self, text):
+    def predict(self, text, friend_count=None, platform=None):
         clean_text = self.preprocess(text)
         vec_text = self.vectorizer.transform([clean_text])
         
@@ -37,7 +37,33 @@ class PersonalityPredictor:
             # Get probability of the positive class (1)
             prob = model.predict_proba(vec_text)[0][1]
             # Convert to a 0-100 score
-            results[trait] = round(prob * 100, 2)
+            results[trait] = prob * 100
+            
+        # Apply Social Media Heuristics if data is provided
+        if friend_count is not None:
+            try:
+                fc = int(friend_count)
+                if fc > 1000:
+                    results['E'] += 15
+                elif fc > 500:
+                    results['E'] += 5
+                elif fc < 200:
+                    results['E'] -= 10
+            except (ValueError, TypeError):
+                pass
+                
+        if platform:
+            p = str(platform).lower()
+            if p == 'linkedin':
+                results['C'] += 10
+                results['O'] -= 5
+            elif p in ['instagram', 'snapchat', 'tiktok']:
+                results['E'] += 5
+                
+        # Clamp scores between 0 and 100 and round
+        for trait in results:
+            results[trait] = max(0.0, min(100.0, results[trait]))
+            results[trait] = round(results[trait], 2)
             
         return self._format_results(results)
 
