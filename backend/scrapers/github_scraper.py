@@ -1,9 +1,15 @@
 import requests
+import os
 from collections import Counter
 
 def scrape_github(handle):
     headers = {"Accept": "application/vnd.github.v3+json"}
     
+    # Add authentication if token is provided to avoid rate limits
+    github_token = os.environ.get("GITHUB_TOKEN")
+    if github_token:
+        headers["Authorization"] = f"Bearer {github_token}"
+        
     # Get user profile
     user_resp = requests.get(f"https://api.github.com/users/{handle}", headers=headers)
     if user_resp.status_code != 200:
